@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DailyLog - プレミアム日記アプリ</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #09090b;
+  --bg-card: #18181b;
+  --bg-input: #27272a;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #4f46e5;
+  --accent-success: #10b981;
+  --accent-danger: #ef4444;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  padding-bottom: 0;
+}
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 80px;
+  }
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  margin-bottom: 24px;
+}
+
+.header-logo {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#user-email {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.main-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .main-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    align-items: start;
+    gap: 24px;
+  }
+  .left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.panel {
+  display: none;
+}
+
+.panel.active-panel {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .panel {
+    display: block !important;
+  }
+}
+
+textarea {
+  width: 100%;
+  height: 180px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 15px;
+  font-size: 16px;
+  box-sizing: border-box;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+input[type="text"], input[type="email"], input[type="password"], select {
+  width: 100%;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 16px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+input:focus, select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+button {
+  background: var(--accent-primary);
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+button:hover {
+  background: var(--accent-primary-hover);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  background: #27272a;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: #3f3f46;
+}
+
+.btn-danger {
+  background: var(--accent-danger);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn-tab {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  padding: 8px 12px;
+  margin: 0;
+}
+
+.btn-tab:hover {
+  color: var(--text-primary);
+}
+
+.entry {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  border-radius: 14px;
+  margin-top: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.entry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tags {
+  color: var(--accent-primary);
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+.meta-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.mood {
+  font-size: 24px;
+}
+
+.weather-text {
+  background: rgba(240, 230, 140, 0.15);
+  color: #f0e68c;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.entry-date {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+#calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.day {
+  background: var(--bg-input);
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  min-height: 68px;
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s, border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.day:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.day-header {
+  font-weight: bold;
+  background: transparent !important;
+  border: none !important;
+  min-height: auto !important;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.dayMood {
+  font-size: 22px;
+  margin-top: 4px;
+}
+
+.cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.load-more {
+  width: 100%;
+  margin-top: 20px;
+  padding: 15px;
+  background: #27272a;
+  color: var(--text-primary);
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.load-more:hover {
+  background: #3f3f46;
+}
+
+.today-highlight {
+  border: 2px solid var(--accent-primary) !important;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* Bottom Navigation Bar (Mobile only) */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(24, 24, 27, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1000;
+}
+
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none;
+  }
+}
+
+.nav-item {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 25%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.nav-item.active {
+  color: var(--accent-primary);
+}
+
+.nav-icon {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+.nav-label {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-actions button {
+  width: 100%;
+  margin-top: 0;
+}
+</style>
+<!-- Supabase JS Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- Authentication Screen -->
+<div id="auth-container" class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;">
+  <div class="card" style="width: 100%; max-width: 400px; padding: 32px;">
+    <h1 style="text-align: center; margin-bottom: 24px; letter-spacing: -1px;">📔 DailyLog</h1>
+    
+    <!-- Supabase API Setup -->
+    <div id="setup-form" style="display: none;">
+      <h3 style="margin-top: 0; margin-bottom: 8px;">Supabase 設定</h3>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.4;">
+        アプリを動作させるには、Supabaseの接続情報（URLとAnon Key）を登録する必要があります。
+      </p>
+      <input type="text" id="supabaseClient-url" placeholder="Supabase Project URL (https://...)">
+      <input type="text" id="supabaseClient-key" placeholder="Supabase Anon Key">
+      <button onclick="saveSupabaseConfig()" class="btn-primary" style="width: 100%; margin-top: 8px;">設定を保存</button>
+    </div>
+
+    <!-- Login / Sign Up Form -->
+    <div id="login-form">
+      <h3 id="auth-title" style="margin-top: 0; margin-bottom: 16px;">ログイン</h3>
+      
+      <input type="email" id="auth-email" placeholder="メールアドレス">
+      <input type="password" id="auth-password" placeholder="パスワード">
+      
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+        <button onclick="handleEmailAuth('signin')" class="btn-primary" id="btn-signin" style="width: 100%; margin: 0;">ログイン</button>
+        <button onclick="handleEmailAuth('signup')" class="btn-secondary" id="btn-signup" style="width: 100%; margin: 0;">新規登録</button>
+        
+        <div style="text-align: center; margin: 10px 0; color: var(--text-secondary); font-size: 14px;">または</div>
+        
+        <button onclick="signInWithGoogle()" class="btn-secondary" style="width: 100%; margin: 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg style="width:18px; height:18px;" viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.137 4.114-3.466 0-6.277-2.85-6.277-6.36s2.81-6.36 6.277-6.36c1.497 0 2.87.545 3.94 1.443l3.056-3.057C18.885 2.115 15.75 1 12.24 1c-6.205 0-11.24 5.035-11.24 11.24s5.035 11.24 11.24 11.24c5.877 0 10.89-4.14 10.89-11.24 0-.585-.054-1.125-.15-1.665H12.24z"/>
+          </svg>
+          Googleでログイン
+        </button>
+      </div>
+      
+      <div id="auth-msg-area" style="margin-top: 15px; padding: 12px; border-radius: 8px; font-size: 13px; display: none; text-align: center;"></div>
+      
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="#" onclick="showSetupForm()" style="color: var(--text-secondary); font-size: 13px; text-decoration: none;">⚙ Supabase設定を変更</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Application Screen -->
+<div id="app-container" class="container" style="display: none;">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-logo">📔 DailyLog</div>
+    <div class="user-profile">
+      <span id="user-email"></span>
+      <button onclick="signOut()" class="btn-secondary" style="padding: 8px 14px; font-size: 13px; margin: 0;">ログアウト</button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="main-layout">
+    <!-- Left Column (Form, Calendar, Settings) -->
+    <div class="left-col">
+      <!-- Panel 1: Write/Edit -->
+      <div id="panel-write" class="panel active-panel card">
+        <h2 id="inputHeader" style="margin-top: 0;">✍ 日記を書く</h2>
+        
+        <input type="text" id="dateInput" placeholder="日付（例: 2026/05/09）">
+        <input type="text" id="tags" placeholder="タグ（例: 生活,AI,ゲーム）">
+        
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <input type="text" id="weather" placeholder="天気 (例: ☀, ☁/🌧)" style="margin-bottom:0;">
+            <select id="mood" style="margin-bottom:0; width:120px;">
+                <option>😊</option><option>😐</option><option>😢</option><option>😡</option>
+            </select>
+        </div>
+
+        <textarea id="content" placeholder="今日の日記を書く"></textarea>
+        
+        <button onclick="saveDiary()" class="btn-primary" style="width: 100%; margin-top: 12px;">💾 保存</button>
+      </div>
+
+      <!-- Panel 2: Calendar -->
+      <div id="panel-calendar" class="panel card">
+        <div class="cal-header">
+            <button onclick="prevMonth()" class="btn-tab">◀ 前月</button>
+            <h2 id="calendarHeader" style="margin:0; font-size: 18px;">📅 カレンダー</h2>
+            <button onclick="nextMonth()" class="btn-tab">翌月 ▶</button>
+        </div>
+        <div id="calendar"></div>
+      </div>
+
+      <!-- Panel 4: Settings -->
+      <div id="panel-settings" class="panel card">
+        <h2 style="margin-top: 0;">⚙ 設定</h2>
+        <div class="settings-actions">
+          <div id="migration-banner" style="display:none; background: rgba(99, 102, 241, 0.15); border: 1px solid var(--accent-primary); padding: 16px; border-radius: 12px; margin-bottom: 8px;">
+            <p style="margin: 0 0 12px 0; font-size:14px; color: var(--text-primary); font-weight: 500;">
+              ローカルに保存されている日記が見つかりました。Supabaseへ同期（移行）しますか？
+            </p>
+            <button onclick="checkAndMigrateLocalData()" class="btn-primary" style="width: 100%; margin: 0;">☁ 移行を実行する</button>
+          </div>
+          <button onclick="exportDiary()" class="btn-secondary">📤 TXTエクスポート</button>
+          <input type="file" id="importFile" accept=".txt" style="display:none" onchange="importDiary(event)">
+          <button onclick="document.getElementById('importFile').click()" class="btn-secondary">📥 TXTインポート</button>
+          <button onclick="clearAllData()" class="btn-danger">🗑 全データ削除</button>
+          <button onclick="editSupabaseConfig()" class="btn-secondary">⚙ Supabase設定変更</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column (List & Search) -->
+    <div class="right-col">
+      <!-- Panel 3: Diary List -->
+      <div id="panel-list" class="panel card">
+        <h2 style="margin-top: 0;">🕘 日記一覧</h2>
+        <input type="text" id="search" placeholder="キーワード検索" oninput="clearDateFilter(false); resetLimitAndRender()">
+        <div id="diaryList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Bar (Mobile only) -->
+  <nav class="bottom-nav">
+    <button onclick="switchTab(0)" class="nav-item active" id="tab-write">
+      <span class="nav-icon">✍</span>
+      <span class="nav-label">書く</span>
+    </button>
+    <button onclick="switchTab(1)" class="nav-item" id="tab-calendar">
+      <span class="nav-icon">📅</span>
+      <span class="nav-label">カレンダー</span>
+    </button>
+    <button onclick="switchTab(2)" class="nav-item" id="tab-list">
+      <span class="nav-icon">🕘</span>
+      <span class="nav-label">一覧</span>
+    </button>
+    <button onclick="switchTab(3)" class="nav-item" id="tab-settings">
+      <span class="nav-icon">⚙</span>
+      <span class="nav-label">設定</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+let diaries = [];
+let editingId = null;
+let displayLimit = 50;
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let activeDateFilter = null; 
+
+let supabaseClient = null;
+let currentUser = null;
+
+function escapeHtml(string) {
+  return String(string).replace(/[&<>"']/g, function (s) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': '&quot;',
+      "'": '&#39;'
+    }[s];
+  });
+}
+
+function prevMonth(){
+    currentMonth--;
+    if(currentMonth < 1){ currentMonth = 12; currentYear--; }
+    renderCalendar();
+}
+
+function nextMonth(){
+    currentMonth++;
+    if(currentMonth > 12){ currentMonth = 1; currentYear++; }
+    renderCalendar();
+}
+
+function initDate() {
+    const now = new Date();
+    const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
+    const dateStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')}(${dayNames[now.getDay()]})`;
+    document.getElementById("dateInput").value = dateStr;
+}
+
+function parseDateString(dateText){
+    const now = new Date();
+    let year = now.getFullYear(), month = now.getMonth() + 1, day = now.getDate();
+    const numbers = dateText.match(/\d+/g);
+    if(!numbers) return { year, month, day };
+    if (dateText.match(/^[月火水木金土日],/)) {
+        day = Number(numbers[0]); month = Number(numbers[1]); year = Number(numbers[2]);
+        return { year, month, day };
+    }
+    if(numbers.length >= 3){
+        if(numbers[0].length === 4){ year = Number(numbers[0]); month = Number(numbers[1]); day = Number(numbers[2]); }
+        else if (Number(numbers[2]) > 31) { year = Number(numbers[2]); month = Number(numbers[0]); day = Number(numbers[1]); }
+        else { year = Number(numbers[0]); if(year < 100) year += 2000; month = Number(numbers[1]); day = Number(numbers[2]); }
+    } else if(numbers.length === 2){ month = Number(numbers[0]); day = Number(numbers[1]); }
+    return { year, month, day };
+}
+
+function renderCalendar(){
+    const calendar = document.getElementById("calendar");
+    const header = document.getElementById("calendarHeader");
+    if(!calendar || !header) return;
+
+    header.innerText = `${currentYear}年 ${currentMonth}月`;
+    calendar.innerHTML = "";
+    const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+    weekdays.forEach(wd => { calendar.innerHTML += `<div class="day day-header">${wd}</div>`; });
+    
+    const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const today = new Date();
+
+    for(let i = 0; i < firstDay; i++){ calendar.innerHTML += `<div class="day" style="background:transparent; border:none; min-height:auto;"></div>`; }
+    
+    for(let day = 1; day <= daysInMonth; day++){
+        let mood = "";
+        const dayEntries = diaries.filter(d => Number(d.year) === currentYear && Number(d.month) === currentMonth && Number(d.day) === day);
+        if(dayEntries.length > 0){ 
+            dayEntries.sort((a,b) => {
+                const aTime = a.created_at ? new Date(a.created_at).getTime() : (Number(a.id) || 0);
+                const bTime = b.created_at ? new Date(b.created_at).getTime() : (Number(b.id) || 0);
+                return bTime - aTime;
+            });
+            mood = dayEntries[0].mood; 
+        }
+        
+        const isToday = (day === today.getDate() && currentMonth === (today.getMonth() + 1) && currentYear === today.getFullYear());
+        const todayClass = isToday ? 'today-highlight' : '';
+
+        calendar.innerHTML += `<div class="day ${todayClass}" onclick="jumpToDiary(${currentYear}, ${currentMonth}, ${day})" style="cursor:pointer;"><div>${day}</div><div class="dayMood">${mood || ''}</div></div>`;
+    }
+}
+
+function clearDateFilter(shouldRender = true){
+    activeDateFilter = null;
+    displayLimit = 50;
+    if(shouldRender) renderDiaries();
+}
+
+function jumpToDiary(y, m, d){
+    const searchInput = document.getElementById("search");
+    if(searchInput.value !== "") { searchInput.value = ""; }
+
+    const found = diaries.some(entry => Number(entry.year) === y && Number(entry.month) === m && Number(entry.day) === d);
+    
+    if(found){
+        activeDateFilter = { year: y, month: m, day: d };
+        displayLimit = 50;
+        renderDiaries();
+        
+        if (window.innerWidth < 768) {
+            switchTab(2);
+        }
+        
+        setTimeout(() => {
+            document.getElementById("search").scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    }
+}
+
+function renderDiaries(){
+    const diaryList = document.getElementById("diaryList");
+    const search = document.getElementById("search").value.toLowerCase();
+    diaryList.innerHTML = "";
+
+    let filtered = diaries;
+
+    if(activeDateFilter){
+        filtered = filtered.filter(d => Number(d.year) === activeDateFilter.year && Number(d.month) === activeDateFilter.month && Number(d.day) === activeDateFilter.day);
+        
+        diaryList.innerHTML += `
+        <div style="background:var(--bg-input); border-left: 4px solid var(--accent-primary); padding:12px 16px; border-radius:8px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; border: 1px solid var(--border-color); border-left: 4px solid var(--accent-primary);">
+            <span>📅 <b>${activeDateFilter.year}年${activeDateFilter.month}月${activeDateFilter.day}日</b> の日記を表示中</span>
+            <button onclick="clearDateFilter()" style="margin:0; padding:6px 12px; font-size:13px;" class="btn-secondary">✖ 解除</button>
+        </div>`;
+    } else {
+        filtered = filtered.filter(d => (d.content||"").toLowerCase().includes(search) || (d.tags||"").toLowerCase().includes(search));
+    }
+
+    filtered.slice(0, displayLimit).forEach(d => {
+        diaryList.innerHTML += `<div class="entry" id="entry-${d.id}">
+            <div class="meta-info">
+                <span class="mood">${d.mood}</span>
+                ${d.weather ? `<span class="weather-text">${d.weather}</span>` : ''}
+                <span class="entry-date">${d.date}</span>
+            </div>
+            <div class="tags">${d.tags ? d.tags.split(',').map(t => `#${t.trim()}`).join(' ') : ''}</div>
+            <p style="margin-top:12px; margin-bottom:16px; white-space: pre-wrap; font-size:15px; color:#e4e4e7;">${escapeHtml(d.content || "")}</p>
+            <div style="display:flex; gap:8px;">
+                <button onclick="editDiary('${d.id}')" class="btn-secondary" style="padding:6px 12px; font-size:13px; margin:0;">✏ 編集</button>
+                <button onclick="deleteDiary('${d.id}')" class="btn-danger" style="padding:6px 12px; font-size:13px; margin:0;">🗑 削除</button>
+            </div>
+        </div>`;
+    });
+
+    if(filtered.length > displayLimit){ 
+        diaryList.innerHTML += `<button class="load-more" onclick="displayLimit+=50;renderDiaries()">▼ さらに表示</button>`; 
+    }
+}
+
+async function saveDiary(){
+    if (!supabaseClient || !currentUser) {
+        alert("ログインしていません。");
+        return;
+    }
+    const dateVal = document.getElementById("dateInput").value;
+    const content = document.getElementById("content").value;
+    const tags = document.getElementById("tags").value;
+    const weather = document.getElementById("weather").value;
+    const mood = document.getElementById("mood").value;
+    
+    if(!content.trim()) return;
+    
+    const parsed = parseDateString(dateVal);
+    
+    const entryData = {
+        date: dateVal,
+        year: parsed.year,
+        month: parsed.month,
+        day: parsed.day,
+        content: content,
+        tags: tags,
+        weather: weather,
+        mood: mood,
+        user_id: currentUser.id
+    };
+    
+    if(editingId){
+        const { error } = await supabaseClient
+            .from('diaries')
+            .update(entryData)
+            .eq('id', editingId);
+        if (error) {
+            alert("保存に失敗しました: " + error.message);
+            return;
+        }
+        editingId = null;
+        document.getElementById("inputHeader").innerText = "✍ 日記を書く";
+    } else {
+        const { error } = await supabaseClient
+            .from('diaries')
+            .insert([entryData]);
+        if (error) {
+            alert("保存に失敗しました: " + error.message);
+            return;
+        }
+    }
+    
+    document.getElementById("content").value = ""; 
+    document.getElementById("tags").value = ""; 
+    document.getElementById("weather").value = ""; 
+    
+    initDate();
+    clearDateFilter(false);
+    displayLimit = 50; 
+    
+    await fetchDiaries();
+    
+    if (window.innerWidth < 768) {
+        switchTab(2); // Go to List tab on Mobile
+    }
+}
+
+function editDiary(id){
+    const diary = diaries.find(d => String(d.id) === String(id));
+    if(!diary) return;
+    editingId = diary.id;
+    
+    document.getElementById("inputHeader").innerText = `✏ 日記を編集 (${diary.date})`;
+    document.getElementById("dateInput").value = diary.date;
+    document.getElementById("content").value = diary.content; 
+    document.getElementById("tags").value = diary.tags; 
+    document.getElementById("weather").value = diary.weather || ""; 
+    document.getElementById("mood").value = diary.mood;
+    
+    if (window.innerWidth < 768) {
+        switchTab(0);
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+async function deleteDiary(id){
+    if(confirm("削除しますか？")){
+        const { error } = await supabaseClient
+            .from('diaries')
+            .delete()
+            .eq('id', id);
+        if (error) {
+            alert("削除に失敗しました: " + error.message);
+        } else {
+            await fetchDiaries();
+        }
+    }
+}
+
+function exportDiary(){
+    if(diaries.length === 0){
+        alert("エクスポートする日記があらへんで！");
+        return;
+    }
+    let text = "";
+    diaries.forEach(d => {
+        text += `${d.date}\n`;
+        if(d.tags) text += `#${d.tags}\n`;
+        
+        let icons = [];
+        if(d.weather) icons.push(d.weather);
+        if(d.mood && d.mood !== "😐") icons.push(d.mood);
+        if(icons.length > 0) text += `${icons.join(" ")}\n`;
+        
+        text += `\n${d.content}\n`;
+        text += `\n----------------------------------------\n\n`;
+    });
+
+    const blob = new Blob([text], {type: "text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+    a.download = `DailyLog_Export_${dateStr}.txt`;
+    
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+async function importDiary(event){
+    if (!supabaseClient || !currentUser) {
+        alert("ログインしていません。");
+        return;
+    }
+    const file = event.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async function(e){
+        const blocks = e.target.result.split(/\n(?=(?:[月火水木金土日],|\d{4}\/\d{2}\/\d{2}))/);
+        const entriesToInsert = [];
+        blocks.forEach(block => {
+            const lines = block.trim().split("\n"); if(lines.length < 2) return;
+            const dateLine = lines[0] || ""; 
+            let tags = "", contentStart = 1;
+            if(lines[1] && lines[1].startsWith("#")){ tags = lines[1].replace(/#/g,"").trim(); contentStart = 2; }
+            let weather = "";
+            while(contentStart < lines.length && lines[contentStart].trim() === "") contentStart++;
+            if(contentStart < lines.length){
+                let firstText = lines[contentStart].trim();
+                if(!/[ぁ-んァ-ヶ亜-熙]/.test(firstText) && firstText.length < 20){ weather = firstText; contentStart++; }
+            }
+            const content = lines.slice(contentStart).join("\n").trim();
+            if(!content) return;
+            const parsed = parseDateString(dateLine);
+            entriesToInsert.push({
+                date: dateLine,
+                year: parsed.year,
+                month: parsed.month,
+                day: parsed.day,
+                content,
+                tags,
+                weather,
+                mood: "😐",
+                user_id: currentUser.id
+            });
+        });
+        
+        if (entriesToInsert.length > 0) {
+            const { error } = await supabaseClient.from('diaries').insert(entriesToInsert);
+            if (error) {
+                alert("インポート失敗: " + error.message);
+            } else {
+                await fetchDiaries();
+                alert("インポート完了や！");
+            }
+        }
+    };
+    reader.readAsText(file);
+}
+
+async function clearAllData(){
+    if (!supabaseClient || !currentUser) return;
+    if(confirm("全消去しますか？ (Supabase上のデータもすべて削除されます)")){
+        const { error } = await supabaseClient
+            .from('diaries')
+            .delete()
+            .eq('user_id', currentUser.id);
+        if (error) {
+            alert("削除失敗: " + error.message);
+        } else {
+            diaries = [];
+            clearDateFilter(false);
+            renderDiaries();
+            renderCalendar();
+            initDate();
+            alert("データを全消去しました。");
+        }
+    }
+}
+
+function resetLimitAndRender(){ displayLimit = 50; renderDiaries(); }
+
+function switchTab(index) {
+    const panels = ['panel-write', 'panel-calendar', 'panel-list', 'panel-settings'];
+    const tabs = ['tab-write', 'tab-calendar', 'tab-list', 'tab-settings'];
+    
+    panels.forEach((p, idx) => {
+        const panelEl = document.getElementById(p);
+        const tabEl = document.getElementById(tabs[idx]);
+        if (idx === index) {
+            panelEl.classList.add('active-panel');
+            tabEl.classList.add('active');
+        } else {
+            panelEl.classList.remove('active-panel');
+            tabEl.classList.remove('active');
+        }
+    });
+}
+
+function initSupabase() {
+    const url = localStorage.getItem("supabase_url");
+    const key = localStorage.getItem("supabase_key");
+    
+    if (url && key) {
+        try {
+            if (!window.supabase) {
+                throw new Error("Supabase SDKが読み込まれていません。インターネット接続を確認してください。");
+            }
+            supabaseClient = window.supabase.createClient(url, key);
+            setupAuthListener();
+        } catch (e) {
+            console.error("Supabase初期化失敗:", e);
+            showSetupForm();
+            const form = document.getElementById("setup-form");
+            if (form) {
+                const oldErr = document.getElementById("supabase-init-error");
+                if (oldErr) oldErr.remove();
+                
+                const errMsg = document.createElement("p");
+                errMsg.id = "supabase-init-error";
+                errMsg.style.color = "var(--accent-danger)";
+                errMsg.style.fontSize = "13px";
+                errMsg.style.marginTop = "10px";
+                errMsg.innerText = "初期化エラー: " + e.message;
+                form.appendChild(errMsg);
+            }
+        }
+    } else {
+        showSetupForm();
+    }
+}
+
+function setupAuthListener() {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (session) {
+            currentUser = session.user;
+            document.getElementById("user-email").innerText = currentUser.email;
+            document.getElementById("auth-container").style.display = "none";
+            document.getElementById("app-container").style.display = "block";
+            
+            const localDiaries = localStorage.getItem("diaries");
+            if (localDiaries) {
+                try {
+                    const parsed = JSON.parse(localDiaries);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        document.getElementById("migration-banner").style.display = "block";
+                    } else {
+                        document.getElementById("migration-banner").style.display = "none";
+                    }
+                } catch(e) {
+                    document.getElementById("migration-banner").style.display = "none";
+                }
+            } else {
+                document.getElementById("migration-banner").style.display = "none";
+            }
+            
+            await fetchDiaries();
+        } else {
+            currentUser = null;
+            document.getElementById("auth-container").style.display = "flex";
+            document.getElementById("app-container").style.display = "none";
+            
+            if (localStorage.getItem("supabase_url") && localStorage.getItem("supabase_key")) {
+                showLoginForm();
+            } else {
+                showSetupForm();
+            }
+        }
+    });
+}
+
+async function fetchDiaries() {
+    if (!supabaseClient || !currentUser) return;
+    const { data, error } = await supabaseClient
+        .from('diaries')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
+    if (error) {
+        console.error("データ取得エラー:", error);
+        const diaryList = document.getElementById("diaryList");
+        if (diaryList) {
+            diaryList.innerHTML = `
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-danger); color: #fca5a5; padding: 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; margin-top: 16px;">
+                    <strong>⚠️ データの取得に失敗しました</strong><br>
+                    Supabaseのデータベースに <code>diaries</code> テーブルが作成されていない可能性があります。<br>
+                    SQLエディタでテーブル作成用SQLを実行したかご確認ください。<br>
+                    <span style="display:block; font-size:11px; margin-top:8px; color: var(--text-secondary);">エラー詳細: ${escapeHtml(error.message)}</span>
+                </div>
+            `;
+        }
+    } else {
+        diaries = data;
+        renderDiaries();
+        renderCalendar();
+    }
+}
+
+function showSetupForm() {
+    document.getElementById("auth-container").style.display = "flex";
+    document.getElementById("app-container").style.display = "none";
+    document.getElementById("setup-form").style.display = "block";
+    document.getElementById("login-form").style.display = "none";
+    document.getElementById("supabaseClient-url").value = localStorage.getItem("supabase_url") || "";
+    document.getElementById("supabaseClient-key").value = localStorage.getItem("supabase_key") || "";
+}
+
+function showLoginForm() {
+    document.getElementById("setup-form").style.display = "none";
+    document.getElementById("login-form").style.display = "block";
+}
+
+function saveSupabaseConfig() {
+    const url = document.getElementById("supabaseClient-url").value.trim();
+    const key = document.getElementById("supabaseClient-key").value.trim();
+    
+    if (!url || !key) {
+        alert("URLとAnon Keyを入力してください。");
+        return;
+    }
+    
+    localStorage.setItem("supabase_url", url);
+    localStorage.setItem("supabase_key", key);
+    
+    initSupabase();
+}
+
+function editSupabaseConfig() {
+    if (confirm("Supabaseの設定を変更しますか？ 現在のログインセッションは終了します。")) {
+        localStorage.removeItem("supabase_url");
+        localStorage.removeItem("supabase_key");
+        if (supabaseClient) {
+            supabaseClient.auth.signOut().catch(() => {});
+        }
+        location.reload();
+    }
+}
+
+async function handleEmailAuth(type) {
+    const email = document.getElementById("auth-email").value.trim();
+    const password = document.getElementById("auth-password").value;
+    const msgArea = document.getElementById("auth-msg-area");
+    
+    if (msgArea) {
+        msgArea.style.display = "none";
+        msgArea.innerText = "";
+    }
+    
+    if (!email || !password) {
+        showAuthMessage("メールアドレスとパスワードを入力してください。", "error");
+        return;
+    }
+    
+    try {
+        if (type === 'signup') {
+            showAuthMessage("登録処理を実行中...", "info");
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: window.location.origin + window.location.pathname
+                }
+            });
+            if (error) {
+                showAuthMessage("新規登録エラー: " + error.message, "error");
+            } else {
+                showAuthMessage("確認メールを送信しました！メールボックスをご確認 of 登録を完了してください。", "success");
+            }
+        } else {
+            showAuthMessage("ログイン処理を実行中...", "info");
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+            if (error) {
+                showAuthMessage("ログインエラー: " + error.message, "error");
+            }
+        }
+    } catch(e) {
+        showAuthMessage("認証エラー: " + e.message, "error");
+    }
+}
+
+function showAuthMessage(msg, type) {
+    const msgArea = document.getElementById("auth-msg-area");
+    if (!msgArea) return;
+    
+    msgArea.innerText = msg;
+    msgArea.style.display = "block";
+    
+    if (type === "error") {
+        msgArea.style.background = "rgba(239, 68, 68, 0.15)";
+        msgArea.style.border = "1px solid var(--accent-danger)";
+        msgArea.style.color = "#fca5a5";
+    } else if (type === "success") {
+        msgArea.style.background = "rgba(16, 185, 129, 0.15)";
+        msgArea.style.border = "1px solid var(--accent-success)";
+        msgArea.style.color = "#a7f3d0";
+    } else { // info
+        msgArea.style.background = "rgba(99, 102, 241, 0.15)";
+        msgArea.style.border = "1px solid var(--accent-primary)";
+        msgArea.style.color = "#c7d2fe";
+    }
+}
+
+async function signInWithGoogle() {
+    if (!supabaseClient) return;
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin + window.location.pathname
+        }
+    });
+    if (error) alert("Googleログインエラー: " + error.message);
+}
+
+async function signOut() {
+    if (confirm("ログアウトしますか？")) {
+        try {
+            if (supabaseClient) {
+                supabaseClient.auth.signOut().catch(e => console.error("SignOut background error:", e));
+            }
+        } catch(e) {
+            console.error("SignOut error:", e);
+        }
+        
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith("sb-") || key.includes("auth-token"))) {
+                localStorage.removeItem(key);
+            }
+        }
+        
+        location.reload();
+    }
+}
+
+async function checkAndMigrateLocalData() {
+    const localDiariesStr = localStorage.getItem("diaries");
+    if (!localDiariesStr) return;
+    try {
+        const localDiaries = JSON.parse(localDiariesStr);
+        if (Array.isArray(localDiaries) && localDiaries.length > 0) {
+            const count = localDiaries.length;
+            const confirmMigrate = confirm(`ローカルに保存されている ${count}件 の日記データが見つかりました。Supabaseへインポートして同期しますか？\n(移行後はローカルデータはクリアされます)`);
+            if (confirmMigrate) {
+                const entriesToInsert = localDiaries.map(d => {
+                    const parsed = parseDateString(d.date);
+                    return {
+                        date: d.date,
+                        year: d.year || parsed.year,
+                        month: d.month || parsed.month,
+                        day: d.day || parsed.day,
+                        content: d.content || "",
+                        tags: d.tags || "",
+                        weather: d.weather || "",
+                        mood: d.mood || "😐",
+                        user_id: currentUser.id
+                    };
+                });
+                
+                const { error } = await supabaseClient.from('diaries').insert(entriesToInsert);
+                if (error) {
+                    alert("データ移行に失敗しました: " + error.message);
+                } else {
+                    localStorage.removeItem("diaries");
+                    document.getElementById("migration-banner").style.display = "none";
+                    alert("ローカルデータの移行に成功しました！");
+                    await fetchDiaries();
+                }
+            }
+        }
+    } catch (e) {
+        console.error("ローカルデータの解析に失敗しました:", e);
+    }
+}
+
+// Startup
+initDate();
+initSupabase();
+</script>
+</body>
+</html>
