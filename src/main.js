@@ -13,7 +13,7 @@ window.onunhandledrejection = function(event) {
 
 let diaries = [];
 let editingId = null;
-let displayLimit = 50;
+let displayLimit = 10;
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth() + 1;
 let activeDateFilter = null; 
@@ -76,6 +76,26 @@ function parseDateString(dateText){
     return { year, month, day };
 }
 
+function sortDiariesList(list) {
+    return list.sort((a, b) => {
+        const aYear = Number(a.year) || 0;
+        const bYear = Number(b.year) || 0;
+        if (aYear !== bYear) return bYear - aYear;
+
+        const aMonth = Number(a.month) || 0;
+        const bMonth = Number(b.month) || 0;
+        if (aMonth !== bMonth) return bMonth - aMonth;
+
+        const aDay = Number(a.day) || 0;
+        const bDay = Number(b.day) || 0;
+        if (aDay !== bDay) return bDay - aDay;
+
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bTime - aTime;
+    });
+}
+
 function renderCalendar(){
     const calendar = document.getElementById("calendar");
     const header = document.getElementById("calendarHeader");
@@ -113,7 +133,7 @@ function renderCalendar(){
 
 function clearDateFilter(shouldRender = true){
     activeDateFilter = null;
-    displayLimit = 50;
+    displayLimit = 10;
     if(shouldRender) renderDiaries();
 }
 
@@ -125,7 +145,7 @@ function jumpToDiary(y, m, d){
     
     if(found){
         activeDateFilter = { year: y, month: m, day: d };
-        displayLimit = 50;
+        displayLimit = 10;
         renderDiaries();
         
         if (window.innerWidth < 768) {
@@ -160,6 +180,9 @@ function renderDiaries(){
         filtered = filtered.filter(d => (d.content||"").toLowerCase().includes(search) || (d.tags||"").toLowerCase().includes(search));
     }
 
+    // 最新順（日付の降順）にソート
+    filtered = sortDiariesList(filtered);
+
     filtered.slice(0, displayLimit).forEach(d => {
         diaryList.innerHTML += `<div class="entry" id="entry-${d.id}">
             <div class="meta-info">
@@ -169,7 +192,7 @@ function renderDiaries(){
             </div>
             <div class="tags">${d.tags ? d.tags.split(',').map(t => `#${t.trim()}`).join(' ') : ''}</div>
             <p style="margin-top:12px; margin-bottom:16px; white-space: pre-wrap; font-size:15px; color:#e4e4e7;">${escapeHtml(d.content || "")}</p>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px;" class="entry-actions">
                 <button onclick="editDiary('${d.id}')" class="btn-secondary" style="padding:6px 12px; font-size:13px; margin:0;">✏ 編集</button>
                 <button onclick="deleteDiary('${d.id}')" class="btn-danger" style="padding:6px 12px; font-size:13px; margin:0;">🗑 削除</button>
             </div>
@@ -235,7 +258,7 @@ async function saveDiary(){
     
     initDate();
     clearDateFilter(false);
-    displayLimit = 50; 
+    displayLimit = 10; 
     
     await fetchDiaries();
     
@@ -379,7 +402,7 @@ async function clearAllData(){
     }
 }
 
-function resetLimitAndRender(){ displayLimit = 50; renderDiaries(); }
+function resetLimitAndRender(){ displayLimit = 10; renderDiaries(); }
 
 function switchTab(index) {
     const panels = ['panel-write', 'panel-calendar', 'panel-list', 'panel-settings'];
@@ -549,7 +572,7 @@ async function fetchDiaries() {
             `;
         }
     } else {
-        diaries = data;
+        diaries = sortDiariesList(data);
         diariesLoaded = true;
         updateDebugStatus();
         renderDiaries();
@@ -589,7 +612,7 @@ async function handleEmailAuth(type) {
             if (error) {
                 showAuthMessage("新規登録エラー: " + error.message, "error");
             } else {
-                showAuthMessage("確認メールを送信しました！メールボックスをご確認のうえ、リンクをクリックして登録を完了してください。", "success");
+                showAuthMessage("確認メールを送信しました！メールボックスをご確認 of うえ、リンクをクリックして登録を完了してください。", "success");
             }
         } else {
             showAuthMessage("ログイン処理を実行中...", "info");
@@ -724,7 +747,7 @@ window.nextMonth = nextMonth;
 window.clearDateFilter = clearDateFilter;
 window.jumpToDiary = jumpToDiary;
 window.checkAndMigrateLocalData = checkAndMigrateLocalData;
-window.loadMoreDiaries = () => { displayLimit += 50; renderDiaries(); };
+window.loadMoreDiaries = () => { displayLimit += 10; renderDiaries(); };
 
 // Startup
 initDate();

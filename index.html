@@ -75,10 +75,12 @@ body {
 }
 
 @media (min-width: 768px) {
+  .container {
+    max-width: 800px;
+  }
   .main-layout {
-    display: grid;
-    grid-template-columns: 1fr 1.2fr;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
     gap: 24px;
   }
   .left-col {
@@ -108,6 +110,37 @@ body {
 @media (min-width: 768px) {
   .panel {
     display: block !important;
+  }
+  #panel-settings {
+    display: none !important;
+  }
+  button, .load-more, .btn-secondary, .btn-danger, .btn-tab {
+    background: #ffffff !important;
+    color: #09090b !important;
+    border: 1px solid var(--border-color) !important;
+  }
+  button:hover, .load-more:hover, .btn-secondary:hover, .btn-danger:hover, .btn-tab:hover {
+    background: #e4e4e7 !important;
+    color: #09090b !important;
+  }
+  .write-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .write-actions button {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px 16px;
+    font-size: 14px;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .pc-only-btn {
+    display: none !important;
   }
 }
 
@@ -452,7 +485,12 @@ button:active {
 
         <textarea id="content" placeholder="今日の日記を書く"></textarea>
         
-        <button onclick="saveDiary()" class="btn-primary" style="width: 100%; margin-top: 12px;">💾 保存</button>
+        <div class="write-actions">
+          <button onclick="saveDiary()" class="btn-primary" id="btn-save-diary">💾 保存</button>
+          <button onclick="exportDiary()" class="btn-secondary pc-only-btn">📤 TXTエクスポート</button>
+          <button onclick="document.getElementById('importFile').click()" class="btn-secondary pc-only-btn">📥 TXTインポート</button>
+          <button onclick="clearAllData()" class="btn-danger pc-only-btn">🗑 全削除</button>
+        </div>
       </div>
 
       <!-- Panel 2: Calendar -->
