@@ -385,10 +385,7 @@ button:active {
 </head>
 <body>
 
-<!-- Debug Status Line -->
-<div id="debug-status" style="font-size: 11px; color: var(--text-secondary); padding: 6px 12px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-color); text-align: center; font-family: monospace;">
-  Debug: [User: N/A] [Loaded: false] [Diaries: 0] [Error: None]
-</div>
+
 
 <!-- Authentication Screen -->
 <div id="auth-container" class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;">
@@ -421,7 +418,7 @@ button:active {
         
         <button onclick="signInWithGoogle()" class="btn-secondary" style="width: 100%; margin: 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
           <svg style="width:18px; height:18px;" viewBox="0 0 24 24">
-            <path fill="#EA4335" d="M12.24 10.285v4.114h6.887c-.648 2.41-2.519 4.114-5.137 4.114-3.466 0-6.277-2.85-6.277-6.36s2.81-6.36 6.277-6.36c1.497 0 2.87.545 3.94 1.443l3.056-3.057C18.885 2.115 15.75 1 12.24 1c-6.205 0-11.24 5.035-11.24 11.24s5.035 11.24 11.24 11.24c5.877 0 10.89-4.14 10.89-11.24 0-.585-.054-1.125-.15-1.665H12.24z"/>
+            <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.137 4.114-3.466 0-6.277-2.85-6.277-6.36s2.81-6.36 6.277-6.36c1.497 0 2.87.545 3.94 1.443l3.056-3.057C18.885 2.115 15.75 1 12.24 1c-6.205 0-11.24 5.035-11.24 11.24s5.035 11.24 11.24 11.24c5.877 0 10.89-4.14 10.89-11.24 0-.585-.054-1.125-.15-1.665H12.24z"/>
           </svg>
           Googleでログイン
         </button>
@@ -534,23 +531,13 @@ button:active {
 <script>
 window.onerror = function(message, source, lineno, colno, error) {
     const errText = `${message} (at ${source}:${lineno}:${colno})`;
-    const el = document.getElementById("debug-status");
-    if (el) {
-        el.innerText = `Debug: [Global Error] ${errText}`;
-        el.style.background = "rgba(239, 68, 68, 0.2)";
-        el.style.color = "#fca5a5";
-    }
+    console.error(`[Global Error] ${errText}`);
     return false;
 };
 
 window.onunhandledrejection = function(event) {
     const errText = `Unhandled Rejection: ${event.reason ? event.reason.message || event.reason : 'Unknown reason'}`;
-    const el = document.getElementById("debug-status");
-    if (el) {
-        el.innerText = `Debug: [Promise Error] ${errText}`;
-        el.style.background = "rgba(239, 68, 68, 0.2)";
-        el.style.color = "#fca5a5";
-    }
+    console.error(`[Promise Error] ${errText}`);
 };
 
 let diaries = [];
@@ -565,10 +552,8 @@ let currentUser = null;
 let diariesLoaded = false;
 
 function updateDebugStatus(errText = "None") {
-    const el = document.getElementById("debug-status");
-    if (!el) return;
     const userEmail = currentUser ? currentUser.email : "N/A";
-    el.innerText = `Debug: [User: ${userEmail}] [Loaded: ${diariesLoaded}] [Diaries: ${diaries.length}] [Error: ${errText}]`;
+    console.log(`[Debug] User: ${userEmail} | Loaded: ${diariesLoaded} | Diaries: ${diaries.length} | Error: ${errText}`);
 }
 
 function escapeHtml(string) {
@@ -1182,7 +1167,7 @@ async function handleEmailAuth(type) {
             if (error) {
                 showAuthMessage("新規登録エラー: " + error.message, "error");
             } else {
-                showAuthMessage("確認メールを送信しました！メールボックスをご確認 of 登録を完了してください。", "success");
+                showAuthMessage("確認メールを送信しました！メールボックスをご確認のうえ、リンクをクリックして登録を完了してください。", "success");
             }
         } else {
             showAuthMessage("ログイン処理を実行中...", "info");
