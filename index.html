@@ -385,6 +385,11 @@ button:active {
 </head>
 <body>
 
+<!-- Debug Status Line -->
+<div id="debug-status" style="font-size: 11px; color: var(--text-secondary); padding: 6px 12px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-color); text-align: center; font-family: monospace;">
+  Debug: [User: N/A] [Loaded: false] [Diaries: 0] [Error: None]
+</div>
+
 <!-- Authentication Screen -->
 <div id="auth-container" class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;">
   <div class="card" style="width: 100%; max-width: 400px; padding: 32px;">
@@ -538,6 +543,13 @@ let supabaseClient = null;
 let currentUser = null;
 let diariesLoaded = false;
 
+function updateDebugStatus(errText = "None") {
+    const el = document.getElementById("debug-status");
+    if (!el) return;
+    const userEmail = currentUser ? currentUser.email : "N/A";
+    el.innerText = `Debug: [User: ${userEmail}] [Loaded: ${diariesLoaded}] [Diaries: ${diaries.length}] [Error: ${errText}]`;
+}
+
 function escapeHtml(string) {
   return String(string).replace(/[&<>"']/g, function (s) {
     return {
@@ -556,6 +568,7 @@ function prevMonth(){
     renderCalendar();
 }
 
+// Setup & Event Listeners
 function nextMonth(){
     currentMonth++;
     if(currentMonth > 12){ currentMonth = 1; currentYear++; }
@@ -966,6 +979,7 @@ async function handleSessionChange(session, event = null) {
         const isExpired = expiresAtMs ? (expiresAtMs < Date.now()) : false;
         if (isExpired) {
             console.log("セッションが期限切れのため、データ取得をスキップしてリフレッシュを待ちます。");
+            updateDebugStatus("Session Expired (waiting refresh)");
             return;
         }
 
@@ -973,6 +987,7 @@ async function handleSessionChange(session, event = null) {
         if (currentUser && currentUser.id === session.user.id && 
             document.getElementById("app-container").style.display === "block" && 
             diariesLoaded) {
+            updateDebugStatus();
             return;
         }
         currentUser = session.user;
@@ -1003,6 +1018,7 @@ async function handleSessionChange(session, event = null) {
     } else {
         currentUser = null;
         diariesLoaded = false;
+        updateDebugStatus("Not Logged In");
         document.getElementById("auth-container").style.display = "flex";
         document.getElementById("app-container").style.display = "none";
         
@@ -1015,7 +1031,10 @@ async function handleSessionChange(session, event = null) {
 }
 
 async function fetchDiaries() {
-    if (!supabaseClient || !currentUser) return;
+    if (!supabaseClient || !currentUser) {
+        updateDebugStatus("Fetch skipped (no client/user)");
+        return;
+    }
     const { data, error } = await supabaseClient
         .from('diaries')
         .select('*')
@@ -1023,6 +1042,7 @@ async function fetchDiaries() {
         .order('created_at', { ascending: false });
     if (error) {
         console.error("データ取得エラー:", error);
+        updateDebugStatus(error.message);
         const diaryList = document.getElementById("diaryList");
         if (diaryList) {
             diaryList.innerHTML = `
@@ -1037,6 +1057,7 @@ async function fetchDiaries() {
     } else {
         diaries = data;
         diariesLoaded = true;
+        updateDebugStatus();
         renderDiaries();
         renderCalendar();
     }
