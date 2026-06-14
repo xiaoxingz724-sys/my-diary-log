@@ -595,7 +595,6 @@ function nextMonth(){
     renderCalendar();
 }
 
-// 598行目から900行目までマージ部分
 function initDate() {
     const now = new Date();
     const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
@@ -981,104 +980,101 @@ function initSupabase() {
 function setupAuthListener() {
     updateDebugStatus("setupAuthListener started");
     try {
-        // 状態変化時の監視
+        // 状態変化時の監視（SDKが自動で初期化セッション復元時にもトリガーします）
         supabaseClient.auth.onAuthStateChange(async (event, session) => {
             updateDebugStatus(`Auth change: ${event}`);
             await handleSessionChange(session, event);
         });
-        
-        updateDebugStatus("onAuthStateChange registered, calling getSession");
-        // 起動時の初期セッションの強制確認（発火漏れ対策・安全なパース）
-        supabaseClient.auth.getSession().then((result) => {
-            updateDebugStatus("getSession resolved");
-            const session = (result && result.data) ? result.data.session : null;
-            if (session) {
-                updateDebugStatus("getSession found session, handling");
-                handleSessionChange(session, null);
-            } else {
-                updateDebugStatus("getSession found no session");
-                handleSessionChange(null, null);
-            }
-        }).catch(err => {
-            console.error("getSession初期起動エラー:", err);
-            updateDebugStatus("getSession failed: " + err.message);
-        });
+        updateDebugStatus("onAuthStateChange registered");
     } catch (e) {
         console.error("setupAuthListener内エラー:", e);
         updateDebugStatus("setupAuthListener err: " + e.message);
     }
 }
 
+let isHandlingSession = false;
 async function handleSessionChange(session, event = null) {
-    updateDebugStatus(`handleSessionChange started (event: ${event}, hasSession: ${!!session})`);
-    if (session) {
-        // セッションの有効期限をミリ秒に安全に変換して期限切れ判定
-        let expiresAtMs = 0;
-        if (typeof session.expires_at === 'number') {
-            expiresAtMs = session.expires_at < 10000000000 ? session.expires_at * 1000 : session.expires_at;
-        } else if (typeof session.expires_at === 'string') {
-            expiresAtMs = new Date(session.expires_at).getTime();
-        }
-        
-        const isExpired = expiresAtMs ? (expiresAtMs < Date.now()) : false;
-        if (isExpired) {
-            console.log("セッションが期限切れのため、データ取得をスキップしてリフレッシュを待ちます。");
-            updateDebugStatus("Session Expired (waiting refresh)");
-            return;
-        }
+    if (isHandlingSession) {
+        console.log("handleSessionChangeは既に実行中のためスキップします。");
+        return;
+    }
+    isHandlingSession = true;
+    try {
+        updateDebugStatus(`handleSessionChange started (event: ${event}, hasSession: ${!!session})`);
+        if (session) {
+            // セッションの有効期限をミリ秒に安全に変換して期限切れ判定
+            let expiresAtMs = 0;
+            if (typeof session.expires_at === 'number') {
+                expiresAtMs = session.expires_at < 10000000000 ? session.expires_at * 1000 : session.expires_at;
+            } else if (typeof session.expires_at === 'string') {
+                expiresAtMs = new Date(session.expires_at).getTime();
+            }
+            
+            const isExpired = expiresAtMs ? (expiresAtMs < Date.now()) : false;
+            if (isExpired) {
+                console.log("セッションが期限切れのため、データ取得をスキップしてリフレッシュを待ちます。");
+                updateDebugStatus("Session Expired (waiting refresh)");
+                return;
+            }
 
-        // すでに表示処理が完了しており、データも取得済みの場合は重複読み込みをスキップ
-        if (currentUser && currentUser.id === session.user.id && 
-            document.getElementById("app-container").style.display === "block" && 
-            diariesLoaded) {
-            updateDebugStatus();
-            return;
-        }
-        currentUser = session.user;
-        document.getElementById("user-email").innerText = currentUser.email;
-        document.getElementById("auth-container").style.display = "none";
-        document.getElementById("app-container").style.display = "block";
-        
-        // Check if there are local diaries that need migration
-        const localDiaries = localStorage.getItem("diaries");
-        if (localDiaries) {
-            try {
-                const parsed = JSON.parse(localDiaries);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    document.getElementById("migration-banner").style.display = "block";
-                } else {
+            // すでに表示処理が完了しており、データも取得済みの場合は重複読み込みをスキップ
+            if (currentUser && currentUser.id === session.user.id && 
+                document.getElementById("app-container").style.display === "block" && 
+                diariesLoaded) {
+                updateDebugStatus();
+                return;
+            }
+            currentUser = session.user;
+            document.getElementById("user-email").innerText = currentUser.email;
+            document.getElementById("auth-container").style.display = "none";
+            document.getElementById("app-container").style.display = "block";
+            
+            // Check if there are local diaries that need migration
+            const localDiaries = localStorage.getItem("diaries");
+            if (localDiaries) {
+                try {
+                    const parsed = JSON.parse(localDiaries);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        document.getElementById("migration-banner").style.display = "block";
+                    } else {
+                        document.getElementById("migration-banner").style.display = "none";
+                    }
+                } catch(e) {
                     document.getElementById("migration-banner").style.display = "none";
                 }
-            } catch(e) {
+            } else {
                 document.getElementById("migration-banner").style.display = "none";
             }
+            
+            // INITIAL_SESSION イベントの時は、SDK内部の初期化完了（getSessionの解決など）を待つため、
+            // ここでのデータ取得はスキップします（ハング防止）
+            if (event === 'INITIAL_SESSION') {
+                console.log("INITIAL_SESSION検知: データ取得を一時保留します。");
+                updateDebugStatus("Session initializing...");
+                return;
+            }
+            
+            // SDK内部での認証ヘッダー反映完了を待つため、200ms遅延させてからデータフェッチを実行
+            await new Promise(resolve => setTimeout(resolve, 200));
+            await fetchDiaries();
         } else {
-            document.getElementById("migration-banner").style.display = "none";
+            currentUser = null;
+            diariesLoaded = false;
+            updateDebugStatus("Not Logged In");
+            document.getElementById("auth-container").style.display = "flex";
+            document.getElementById("app-container").style.display = "none";
+            
+            if (localStorage.getItem("supabase_url") && localStorage.getItem("supabase_key")) {
+                showLoginForm();
+            } else {
+                showSetupForm();
+            }
         }
-        
-        // INITIAL_SESSION イベントの時は、SDK内部の初期化完了（getSessionの解決など）を待つため、
-        // ここでのデータ取得はスキップします（ハング防止）
-        if (event === 'INITIAL_SESSION') {
-            console.log("INITIAL_SESSION検知: データ取得を一時保留します。");
-            updateDebugStatus("Session initializing...");
-            return;
-        }
-        
-        // SDK内部での認証ヘッダー反映完了を待つため、200ms遅延させてからデータフェッチを実行
-        await new Promise(resolve => setTimeout(resolve, 200));
-        await fetchDiaries();
-    } else {
-        currentUser = null;
-        diariesLoaded = false;
-        updateDebugStatus("Not Logged In");
-        document.getElementById("auth-container").style.display = "flex";
-        document.getElementById("app-container").style.display = "none";
-        
-        if (localStorage.getItem("supabase_url") && localStorage.getItem("supabase_key")) {
-            showLoginForm();
-        } else {
-            showSetupForm();
-        }
+    } catch (e) {
+        console.error("handleSessionChange内エラー:", e);
+        updateDebugStatus("handleSessionChange err: " + e.message);
+    } finally {
+        isHandlingSession = false;
     }
 }
 
