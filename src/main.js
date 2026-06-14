@@ -277,11 +277,437 @@ async function deleteDiary(id){
     }
 }
 
-// Startup
-initDate();
-initSupabase();
+function exportDiary(){
+    if(diaries.length === 0){
+        alert("エクスポートする日記があらへんで！");
+        return;
+    }
+    let text = "";
+    diaries.forEach(d => {
+        text += `${d.date}\n`;
+        if(d.tags) text += `#${d.tags}\n`;
+        
+        let icons = [];
+        if(d.weather) icons.push(d.weather);
+        if(d.mood && d.mood !== "😐") icons.push(d.mood);
+        if(icons.length > 0) text += `${icons.join(" ")}\n`;
+        
+        text += `\n${d.content}\n`;
+        text += `\n----------------------------------------\n\n`;
+    });
 
-// Expose globals
+    const blob = new Blob([text], {type: "text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+    a.download = `DailyLog_Export_${dateStr}.txt`;
+    
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+async function importDiary(event){
+    if (!supabaseClient || !currentUser) {
+        alert("ログインしていません。");
+        return;
+    }
+    const file = event.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async function(e){
+        const blocks = e.target.result.split(/\n(?=(?:[月火水木金土日],|\d{4}\/\d{2}\/\d{2}))/);
+        const entriesToInsert = [];
+        blocks.forEach(block => {
+            const lines = block.trim().split("\n"); if(lines.length < 2) return;
+            const dateLine = lines[0] || ""; 
+            let tags = "", contentStart = 1;
+            if(lines[1] && lines[1].startsWith("#")){ tags = lines[1].replace(/#/g,"").trim(); contentStart = 2; }
+            let weather = "";
+            while(contentStart < lines.length && lines[contentStart].trim() === "") contentStart++;
+            if(contentStart < lines.length){
+                let firstText = lines[contentStart].trim();
+                if(!/[ぁ-んァ-ヶ亜-熙]/.test(firstText) && firstText.length < 20){ weather = firstText; contentStart++; }
+            }
+            const content = lines.slice(contentStart).join("\n").trim();
+            if(!content) return;
+            const parsed = parseDateString(dateLine);
+            entriesToInsert.push({
+                date: dateLine,
+                year: parsed.year,
+                month: parsed.month,
+                day: parsed.day,
+                content,
+                tags,
+                weather,
+                mood: "😐",
+                user_id: currentUser.id
+            });
+        });
+        
+        if (entriesToInsert.length > 0) {
+            const { error } = await supabaseClient.from('diaries').insert(entriesToInsert);
+            if (error) {
+                alert("インポート失敗: " + error.message);
+            } else {
+                await fetchDiaries();
+                alert("インポート完了や！");
+            }
+        }
+    };
+    reader.readAsText(file);
+}
+
+async function clearAllData(){
+    if (!supabaseClient || !currentUser) return;
+    if(confirm("全消去しますか？ (Supabase上のデータもすべて削除されます)")){
+        const { error } = await supabaseClient
+            .from('diaries')
+            .delete()
+            .eq('user_id', currentUser.id);
+        if (error) {
+            alert("削除失敗: " + error.message);
+        } else {
+            diaries = [];
+            clearDateFilter(false);
+            renderDiaries();
+            renderCalendar();
+            initDate();
+            alert("データを全消去しました。");
+        }
+    }
+}
+
+function resetLimitAndRender(){ displayLimit = 50; renderDiaries(); }
+
+function switchTab(index) {
+    const panels = ['panel-write', 'panel-calendar', 'panel-list', 'panel-settings'];
+    const tabs = ['tab-write', 'tab-calendar', 'tab-list', 'tab-settings'];
+    
+    panels.forEach((p, idx) => {
+        const panelEl = document.getElementById(p);
+        const tabEl = document.getElementById(tabs[idx]);
+        if (idx === index) {
+            panelEl.classList.add('active-panel');
+            tabEl.classList.add('active');
+        } else {
+            panelEl.classList.remove('active-panel');
+            tabEl.classList.remove('active');
+        }
+    });
+}
+
+// Supabase Logic
+function showSupabaseError(message) {
+    const banner = document.getElementById("supabase-error-banner");
+    if (banner) {
+        const detailsEl = banner.querySelector(".error-details");
+        if (detailsEl) {
+            detailsEl.innerText = message;
+        }
+        banner.style.display = "block";
+    }
+}
+
+function initSupabase() {
+    updateDebugStatus("initSupabase started");
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (url && key) {
+        try {
+            updateDebugStatus("Creating Supabase client");
+            supabaseClient = createClient(url, key);
+            updateDebugStatus("Supabase client created, setting up listeners");
+            setupAuthListener();
+        } catch (e) {
+            console.error("Supabase初期化失敗:", e);
+            updateDebugStatus("Init error: " + e.message);
+            showSupabaseError("Supabase初期化中に例外が発生しました: " + e.message);
+        }
+    } else {
+        updateDebugStatus("No credentials in environment variables");
+        console.error("Supabase URL or Key is missing in environment variables.");
+        showSupabaseError("環境変数（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）が設定されていません。");
+    }
+}
+
+function setupAuthListener() {
+    updateDebugStatus("setupAuthListener started");
+    try {
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            updateDebugStatus(`Auth change: ${event}`);
+            handleSessionChange(session, event);
+        });
+        updateDebugStatus("onAuthStateChange registered");
+    } catch (e) {
+        console.error("setupAuthListener内エラー:", e);
+        updateDebugStatus("setupAuthListener err: " + e.message);
+    }
+}
+
+let isHandlingSession = false;
+function handleSessionChange(session, event = null) {
+    if (isHandlingSession) {
+        console.log("handleSessionChangeは既に実行中のためスキップします。");
+        return;
+    }
+    isHandlingSession = true;
+    try {
+        updateDebugStatus(`handleSessionChange started (event: ${event}, hasSession: ${!!session})`);
+        if (session) {
+            let expiresAtMs = 0;
+            if (typeof session.expires_at === 'number') {
+                expiresAtMs = session.expires_at < 10000000000 ? session.expires_at * 1000 : session.expires_at;
+            } else if (typeof session.expires_at === 'string') {
+                expiresAtMs = new Date(session.expires_at).getTime();
+            }
+            
+            const isExpired = expiresAtMs ? (expiresAtMs < Date.now()) : false;
+            if (isExpired) {
+                console.log("セッションが期限切れのため、データ取得をスキップしてリフレッシュを待ちます。");
+                updateDebugStatus("Session Expired (waiting refresh)");
+                return;
+            }
+
+            if (currentUser && currentUser.id === session.user.id && 
+                document.getElementById("app-container").style.display === "block" && 
+                diariesLoaded) {
+                updateDebugStatus();
+                return;
+            }
+            currentUser = session.user;
+            document.getElementById("user-email").innerText = currentUser.email;
+            document.getElementById("auth-container").style.display = "none";
+            document.getElementById("app-container").style.display = "block";
+            
+            const localDiaries = localStorage.getItem("diaries");
+            if (localDiaries) {
+                try {
+                    const parsed = JSON.parse(localDiaries);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        document.getElementById("migration-banner").style.display = "block";
+                    } else {
+                        document.getElementById("migration-banner").style.display = "none";
+                    }
+                } catch(e) {
+                    document.getElementById("migration-banner").style.display = "none";
+                }
+            } else {
+                document.getElementById("migration-banner").style.display = "none";
+            }
+            
+            if (event === 'INITIAL_SESSION') {
+                console.log("INITIAL_SESSION検知: データ取得を一時保留します。");
+                updateDebugStatus("Session initializing...");
+                return;
+            }
+            
+            updateDebugStatus("Scheduling fetchDiaries...");
+            setTimeout(() => {
+                updateDebugStatus("Executing scheduled fetchDiaries...");
+                fetchDiaries();
+            }, 300);
+        } else {
+            currentUser = null;
+            diariesLoaded = false;
+            updateDebugStatus("Not Logged In");
+            document.getElementById("auth-container").style.display = "flex";
+            document.getElementById("app-container").style.display = "none";
+        }
+    } catch (e) {
+        console.error("handleSessionChange内エラー:", e);
+        updateDebugStatus("handleSessionChange err: " + e.message);
+    } finally {
+        isHandlingSession = false;
+    }
+}
+
+async function fetchDiaries() {
+    if (!supabaseClient || !currentUser) {
+        updateDebugStatus("Fetch skipped (no client/user)");
+        return;
+    }
+    const { data, error } = await supabaseClient
+        .from('diaries')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
+    if (error) {
+        console.error("データ取得エラー:", error);
+        updateDebugStatus(error.message);
+        const diaryList = document.getElementById("diaryList");
+        if (diaryList) {
+            diaryList.innerHTML = `
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-danger); color: #fca5a5; padding: 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; margin-top: 16px;">
+                    <strong>⚠️ データの取得に失敗しました</strong><br>
+                    Supabaseのデータベースに <code>diaries</code> テーブルが作成されていない可能性があります。<br>
+                    SQLエディタでテーブル作成用SQLを実行したかご確認ください。<br>
+                    <span style="display:block; font-size:11px; margin-top:8px; color: var(--text-secondary);">エラー詳細: ${escapeHtml(error.message)}</span>
+                </div>
+            `;
+        }
+    } else {
+        diaries = data;
+        diariesLoaded = true;
+        updateDebugStatus();
+        renderDiaries();
+        renderCalendar();
+    }
+}
+
+async function handleEmailAuth(type) {
+    if (!supabaseClient) {
+        showAuthMessage("Supabaseクライアントが初期化されていないため、認証を実行できません。", "error");
+        return;
+    }
+    const email = document.getElementById("auth-email").value.trim();
+    const password = document.getElementById("auth-password").value;
+    const msgArea = document.getElementById("auth-msg-area");
+    
+    if (msgArea) {
+        msgArea.style.display = "none";
+        msgArea.innerText = "";
+    }
+    
+    if (!email || !password) {
+        showAuthMessage("メールアドレスとパスワードを入力してください。", "error");
+        return;
+    }
+    
+    try {
+        if (type === 'signup') {
+            showAuthMessage("登録処理を実行中...", "info");
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: window.location.origin + window.location.pathname
+                }
+            });
+            if (error) {
+                showAuthMessage("新規登録エラー: " + error.message, "error");
+            } else {
+                showAuthMessage("確認メールを送信しました！メールボックスをご確認のうえ、リンクをクリックして登録を完了してください。", "success");
+            }
+        } else {
+            showAuthMessage("ログイン処理を実行中...", "info");
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+            if (error) {
+                showAuthMessage("ログインエラー: " + error.message, "error");
+            }
+        }
+    } catch(e) {
+        showAuthMessage("認証エラー: " + e.message, "error");
+    }
+}
+
+function showAuthMessage(msg, type) {
+    const msgArea = document.getElementById("auth-msg-area");
+    if (!msgArea) return;
+    
+    msgArea.innerText = msg;
+    msgArea.style.display = "block";
+    
+    if (type === "error") {
+        msgArea.style.background = "rgba(239, 68, 68, 0.15)";
+        msgArea.style.border = "1px solid var(--accent-danger)";
+        msgArea.style.color = "#fca5a5";
+    } else if (type === "success") {
+        msgArea.style.background = "rgba(16, 185, 129, 0.15)";
+        msgArea.style.border = "1px solid var(--accent-success)";
+        msgArea.style.color = "#a7f3d0";
+    } else { // info
+        msgArea.style.background = "rgba(99, 102, 241, 0.15)";
+        msgArea.style.border = "1px solid var(--accent-primary)";
+        msgArea.style.color = "#c7d2fe";
+    }
+}
+
+async function signInWithGoogle() {
+    if (!supabaseClient) {
+        alert("Googleログインエラー: Supabaseクライアントが初期化されていません。");
+        return;
+    }
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin + window.location.pathname
+        }
+    });
+    if (error) alert("Googleログインエラー: " + error.message);
+}
+
+async function signOut() {
+    if (confirm("ログアウトしますか？")) {
+        try {
+            if (supabaseClient) {
+                supabaseClient.auth.signOut().catch(e => console.error("SignOut background error:", e));
+            }
+        } catch(e) {
+            console.error("SignOut error:", e);
+        }
+        
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith("sb-") || key.includes("auth-token"))) {
+                localStorage.removeItem(key);
+            }
+        }
+        
+        location.reload();
+    }
+}
+
+async function checkAndMigrateLocalData() {
+    const localDiariesStr = localStorage.getItem("diaries");
+    if (!localDiariesStr) return;
+    try {
+        const localDiaries = JSON.parse(localDiariesStr);
+        if (Array.isArray(localDiaries) && localDiaries.length > 0) {
+            const count = localDiaries.length;
+            const confirmMigrate = confirm(`ローカルに保存されている ${count}件 の日記データが見つかりました。Supabaseへインポートして同期しますか？\n(移行後はローカルデータはクリアされます)`);
+            if (confirmMigrate) {
+                if (!supabaseClient) {
+                    alert("データ移行に失敗しました: Supabaseクライアントが初期化されていません。");
+                    return;
+                }
+                const entriesToInsert = localDiaries.map(d => {
+                    const parsed = parseDateString(d.date);
+                    return {
+                        date: d.date,
+                        year: d.year || parsed.year,
+                        month: d.month || parsed.month,
+                        day: d.day || parsed.day,
+                        content: d.content || "",
+                        tags: d.tags || "",
+                        weather: d.weather || "",
+                        mood: d.mood || "😐",
+                        user_id: currentUser.id
+                    };
+                });
+                
+                const { error } = await supabaseClient.from('diaries').insert(entriesToInsert);
+                if (error) {
+                    alert("データ移行に失敗しました: " + error.message);
+                } else {
+                    localStorage.removeItem("diaries");
+                    document.getElementById("migration-banner").style.display = "none";
+                    alert("ローカルデータの移行に成功しました！");
+                    await fetchDiaries();
+                }
+            }
+        }
+    } catch (e) {
+        console.error("ローカルデータの解析に失敗しました:", e);
+    }
+}
+
+// Expose globals for inline event handlers
 window.handleEmailAuth = handleEmailAuth;
 window.signInWithGoogle = signInWithGoogle;
 window.signOut = signOut;
@@ -299,3 +725,7 @@ window.clearDateFilter = clearDateFilter;
 window.jumpToDiary = jumpToDiary;
 window.checkAndMigrateLocalData = checkAndMigrateLocalData;
 window.loadMoreDiaries = () => { displayLimit += 50; renderDiaries(); };
+
+// Startup
+initDate();
+initSupabase();
