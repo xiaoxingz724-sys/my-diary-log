@@ -421,7 +421,7 @@ button:active {
         
         <button onclick="signInWithGoogle()" class="btn-secondary" style="width: 100%; margin: 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
           <svg style="width:18px; height:18px;" viewBox="0 0 24 24">
-            <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.137 4.114-3.466 0-6.277-2.85-6.277-6.36s2.81-6.36 6.277-6.36c1.497 0 2.87.545 3.94 1.443l3.056-3.057C18.885 2.115 15.75 1 12.24 1c-6.205 0-11.24 5.035-11.24 11.24s5.035 11.24 11.24 11.24c5.877 0 10.89-4.14 10.89-11.24 0-.585-.054-1.125-.15-1.665H12.24z"/>
+            <path fill="#EA4335" d="M12.24 10.285v4.114h6.887c-.648 2.41-2.519 4.114-5.137 4.114-3.466 0-6.277-2.85-6.277-6.36s2.81-6.36 6.277-6.36c1.497 0 2.87.545 3.94 1.443l3.056-3.057C18.885 2.115 15.75 1 12.24 1c-6.205 0-11.24 5.035-11.24 11.24s5.035 11.24 11.24 11.24c5.877 0 10.89-4.14 10.89-11.24 0-.585-.054-1.125-.15-1.665H12.24z"/>
           </svg>
           Googleでログイン
         </button>
@@ -981,9 +981,9 @@ function setupAuthListener() {
     updateDebugStatus("setupAuthListener started");
     try {
         // 状態変化時の監視（SDKが自動で初期化セッション復元時にもトリガーします）
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        supabaseClient.auth.onAuthStateChange((event, session) => {
             updateDebugStatus(`Auth change: ${event}`);
-            await handleSessionChange(session, event);
+            handleSessionChange(session, event);
         });
         updateDebugStatus("onAuthStateChange registered");
     } catch (e) {
@@ -993,7 +993,7 @@ function setupAuthListener() {
 }
 
 let isHandlingSession = false;
-async function handleSessionChange(session, event = null) {
+function handleSessionChange(session, event = null) {
     if (isHandlingSession) {
         console.log("handleSessionChangeは既に実行中のためスキップします。");
         return;
@@ -1054,9 +1054,12 @@ async function handleSessionChange(session, event = null) {
                 return;
             }
             
-            // SDK内部での認証ヘッダー反映完了を待つため、200ms遅延させてからデータフェッチを実行
-            await new Promise(resolve => setTimeout(resolve, 200));
-            await fetchDiaries();
+            // コールバックのイベントループをブロックしないよう、setTimeoutでデータフェッチを非同期実行
+            updateDebugStatus("Scheduling fetchDiaries...");
+            setTimeout(() => {
+                updateDebugStatus("Executing scheduled fetchDiaries...");
+                fetchDiaries();
+            }, 300);
         } else {
             currentUser = null;
             diariesLoaded = false;
@@ -1179,7 +1182,7 @@ async function handleEmailAuth(type) {
             if (error) {
                 showAuthMessage("新規登録エラー: " + error.message, "error");
             } else {
-                showAuthMessage("確認メールを送信しました！メールボックスをご確認のうえ、リンクをクリックして登録を完了してください。", "success");
+                showAuthMessage("確認メールを送信しました！メールボックスをご確認 of 登録を完了してください。", "success");
             }
         } else {
             showAuthMessage("ログイン処理を実行中...", "info");
