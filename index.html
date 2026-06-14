@@ -1036,6 +1036,14 @@ async function handleSessionChange(session, event = null) {
             document.getElementById("migration-banner").style.display = "none";
         }
         
+        // INITIAL_SESSION イベントの時は、SDK内部の初期化完了（getSessionの解決など）を待つため、
+        // ここでのデータ取得はスキップします（ハング防止）
+        if (event === 'INITIAL_SESSION') {
+            console.log("INITIAL_SESSION検知: データ取得を一時保留します。");
+            updateDebugStatus("Session initializing...");
+            return;
+        }
+        
         // SDK内部での認証ヘッダー反映完了を待つため、200ms遅延させてからデータフェッチを実行
         await new Promise(resolve => setTimeout(resolve, 200));
         await fetchDiaries();
