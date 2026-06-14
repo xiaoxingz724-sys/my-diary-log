@@ -21,6 +21,7 @@ let activeDateFilter = null;
 let supabaseClient = null;
 let currentUser = null;
 let diariesLoaded = false;
+let currentEditingImageUrl = null;
 
 function updateDebugStatus(errText = "None") {
     const userEmail = currentUser ? currentUser.email : "N/A";
@@ -37,6 +38,40 @@ function escapeHtml(string) {
       "'": '&#39;'
     }[s];
   });
+}
+
+function clearSelectedImage() {
+    const input = document.getElementById("imageInput");
+    if (input) input.value = "";
+    
+    const previewContainer = document.getElementById("imagePreviewContainer");
+    const previewImg = document.getElementById("imagePreview");
+    if (previewContainer && previewImg) {
+        previewImg.src = "";
+        previewContainer.style.display = "none";
+    }
+    currentEditingImageUrl = null;
+}
+
+function setupImagePreviewListener() {
+    const imageInput = document.getElementById("imageInput");
+    if (imageInput) {
+        imageInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            const previewContainer = document.getElementById("imagePreviewContainer");
+            const previewImg = document.getElementById("imagePreview");
+            
+            if (file && previewContainer && previewImg) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewImg.src = event.target.result;
+                    previewContainer.style.display = "block";
+                };
+                reader.readAsDataURL(file);
+                currentEditingImageUrl = null;
+            }
+        });
+    }
 }
 
 function prevMonth(){
@@ -191,6 +226,11 @@ function renderDiaries(){
                 <span class="entry-date">${d.date}</span>
             </div>
             <div class="tags">${d.tags ? d.tags.split(',').map(t => `#${t.trim()}`).join(' ') : ''}</div>
+            ${d.image_url ? `
+            <div style="margin-top:12px; margin-bottom:12px;">
+                <img src="${d.image_url}" style="max-width:100%; max-height:300px; border-radius:12px; cursor:pointer; border: 1px solid var(--border-color); display: block;" onclick="window.open('${d.image_url}', '_blank')">
+            </div>
+            ` : ''}
             <p style="margin-top:12px; margin-bottom:16px; white-space: pre-wrap; font-size:15px; color:#e4e4e7;">${escapeHtml(d.content || "")}</p>
             <div style="display:flex; gap:8px;" class="entry-actions">
                 <button onclick="editDiary('${d.id}')" class="btn-secondary" style="padding:6px 12px; font-size:13px; margin:0;">✏ 編集</button>
@@ -219,6 +259,30 @@ async function saveDiary(){
     
     const parsed = parseDateString(dateVal);
     
+    const imageInput = document.getElementById("imageInput");
+    let imageUrl = currentEditingImageUrl || null;
+    
+    if (imageInput && imageInput.files && imageInput.files[0]) {
+        const file = imageInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentUser.id}/${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('diary-images')
+            .upload(fileName, file);
+            
+        if (uploadError) {
+            alert("画像のアップロードに失敗しました: " + uploadError.message);
+            return;
+        }
+        
+        const { data: { publicUrl } } = supabaseClient.storage
+            .from('diary-images')
+            .getPublicUrl(fileName);
+            
+        imageUrl = publicUrl;
+    }
+    
     const entryData = {
         date: dateVal,
         year: parsed.year,
@@ -228,6 +292,7 @@ async function saveDiary(){
         tags: tags,
         weather: weather,
         mood: mood,
+        image_url: imageUrl,
         user_id: currentUser.id
     };
     
@@ -255,6 +320,7 @@ async function saveDiary(){
     document.getElementById("content").value = ""; 
     document.getElementById("tags").value = ""; 
     document.getElementById("weather").value = ""; 
+    clearSelectedImage();
     
     initDate();
     clearDateFilter(false);
@@ -271,6 +337,7 @@ function editDiary(id){
     const diary = diaries.find(d => String(d.id) === String(id));
     if(!diary) return;
     editingId = diary.id;
+    currentEditingImageUrl = diary.image_url || null;
     
     document.getElementById("inputHeader").innerText = `✏ 日記を編集 (${diary.date})`;
     document.getElementById("dateInput").value = diary.date;
@@ -278,6 +345,20 @@ function editDiary(id){
     document.getElementById("tags").value = diary.tags; 
     document.getElementById("weather").value = diary.weather || ""; 
     document.getElementById("mood").value = diary.mood;
+    
+    const previewContainer = document.getElementById("imagePreviewContainer");
+    const previewImg = document.getElementById("imagePreview");
+    if (previewContainer && previewImg) {
+        if (diary.image_url) {
+            previewImg.src = diary.image_url;
+            previewContainer.style.display = "block";
+        } else {
+            previewImg.src = "";
+            previewContainer.style.display = "none";
+        }
+    }
+    const imageInput = document.getElementById("imageInput");
+    if (imageInput) imageInput.value = "";
     
     if (window.innerWidth < 768) {
         switchTab(0);
@@ -432,6 +513,11 @@ function showSupabaseError(message) {
         banner.style.display = "block";
     }
 }
+
+// Startup
+initDate();
+initSupabase();
+setupImagePreviewListener();
 
 function initSupabase() {
     updateDebugStatus("initSupabase started");
@@ -612,7 +698,7 @@ async function handleEmailAuth(type) {
             if (error) {
                 showAuthMessage("新規登録エラー: " + error.message, "error");
             } else {
-                showAuthMessage("確認メールを送信しました！メールボックスをご確認 of うえ、リンクをクリックして登録を完了してください。", "success");
+                showAuthMessage("確認メールを送信しました！メールボックスをご確認のうえ、リンクをクリックして登録を完了してください。", "success");
             }
         } else {
             showAuthMessage("ログイン処理を実行中...", "info");
@@ -748,7 +834,4 @@ window.clearDateFilter = clearDateFilter;
 window.jumpToDiary = jumpToDiary;
 window.checkAndMigrateLocalData = checkAndMigrateLocalData;
 window.loadMoreDiaries = () => { displayLimit += 10; renderDiaries(); };
-
-// Startup
-initDate();
-initSupabase();
+window.clearSelectedImage = clearSelectedImage;
