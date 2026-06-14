@@ -595,6 +595,7 @@ function nextMonth(){
     renderCalendar();
 }
 
+// 598行目から900行目までマージ部分
 function initDate() {
     const now = new Date();
     const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
@@ -940,6 +941,7 @@ function switchTab(index) {
 
 // Supabase Logic
 function initSupabase() {
+    updateDebugStatus("initSupabase started");
     const url = localStorage.getItem("supabase_url");
     const key = localStorage.getItem("supabase_key");
     
@@ -948,10 +950,13 @@ function initSupabase() {
             if (!window.supabase) {
                 throw new Error("Supabase SDKが読み込まれていません。インターネット接続を確認してください。");
             }
+            updateDebugStatus("Creating Supabase client");
             supabaseClient = window.supabase.createClient(url, key);
+            updateDebugStatus("Supabase client created, setting up listeners");
             setupAuthListener();
         } catch (e) {
             console.error("Supabase初期化失敗:", e);
+            updateDebugStatus("Init error: " + e.message);
             showSetupForm();
             const form = document.getElementById("setup-form");
             if (form) {
@@ -968,29 +973,44 @@ function initSupabase() {
             }
         }
     } else {
+        updateDebugStatus("No credentials in localStorage");
         showSetupForm();
     }
 }
 
 function setupAuthListener() {
-    // 状態変化時の監視
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        await handleSessionChange(session, event);
-    });
-    
-    // 起動時の初期セッションの強制確認（発火漏れ対策・安全なパース）
-    supabaseClient.auth.getSession().then((result) => {
-        const session = (result && result.data) ? result.data.session : null;
-        if (session) {
-            handleSessionChange(session, null);
-        }
-    }).catch(err => {
-        console.error("getSession初期起動エラー:", err);
-        updateDebugStatus("getSession failed: " + err.message);
-    });
+    updateDebugStatus("setupAuthListener started");
+    try {
+        // 状態変化時の監視
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            updateDebugStatus(`Auth change: ${event}`);
+            await handleSessionChange(session, event);
+        });
+        
+        updateDebugStatus("onAuthStateChange registered, calling getSession");
+        // 起動時の初期セッションの強制確認（発火漏れ対策・安全なパース）
+        supabaseClient.auth.getSession().then((result) => {
+            updateDebugStatus("getSession resolved");
+            const session = (result && result.data) ? result.data.session : null;
+            if (session) {
+                updateDebugStatus("getSession found session, handling");
+                handleSessionChange(session, null);
+            } else {
+                updateDebugStatus("getSession found no session");
+                handleSessionChange(null, null);
+            }
+        }).catch(err => {
+            console.error("getSession初期起動エラー:", err);
+            updateDebugStatus("getSession failed: " + err.message);
+        });
+    } catch (e) {
+        console.error("setupAuthListener内エラー:", e);
+        updateDebugStatus("setupAuthListener err: " + e.message);
+    }
 }
 
 async function handleSessionChange(session, event = null) {
+    updateDebugStatus(`handleSessionChange started (event: ${event}, hasSession: ${!!session})`);
     if (session) {
         // セッションの有効期限をミリ秒に安全に変換して期限切れ判定
         let expiresAtMs = 0;
