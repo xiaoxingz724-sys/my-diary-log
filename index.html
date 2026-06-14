@@ -955,11 +955,17 @@ function setupAuthListener() {
 
 async function handleSessionChange(session, event = null) {
     if (session) {
-        // すでに表示処理が完了しており、データも取得済みで、かつトークンリフレッシュイベントでなければスキップ
+        // セッションが期限切れの場合は、データ取得をスキップしてリフレッシュを待つ
+        const isExpired = session.expires_at ? (session.expires_at * 1000 < Date.now()) : false;
+        if (isExpired) {
+            console.log("セッションが期限切れのため、データ取得をスキップします。");
+            return;
+        }
+
+        // すでに表示処理が完了しており、データも取得済みの場合は重複読み込みをスキップ
         if (currentUser && currentUser.id === session.user.id && 
             document.getElementById("app-container").style.display === "block" && 
-            diariesLoaded && 
-            event !== 'TOKEN_REFRESHED') {
+            diariesLoaded) {
             return;
         }
         currentUser = session.user;
@@ -1036,7 +1042,6 @@ function showSetupForm() {
     document.getElementById("supabaseClient-key").value = localStorage.getItem("supabase_key") || "";
 }
 
-// Setup & Event Listeners
 function showLoginForm() {
     document.getElementById("setup-form").style.display = "none";
     document.getElementById("login-form").style.display = "block";
@@ -1150,12 +1155,14 @@ async function signOut() {
     if (confirm("ログアウトしますか？")) {
         try {
             if (supabaseClient) {
+                // ハングを防ぐため、結果を待たずに非同期でバックグラウンド実行します
                 supabaseClient.auth.signOut().catch(e => console.error("SignOut background error:", e));
             }
         } catch(e) {
             console.error("SignOut error:", e);
         }
         
+        // ローカルに保存されているセッション関連データを強制クリア
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const key = localStorage.key(i);
             if (key && (key.startsWith("sb-") || key.includes("auth-token"))) {
@@ -1163,6 +1170,7 @@ async function signOut() {
             }
         }
         
+        // 画面をリロードして初期状態（ログイン画面）に戻します
         location.reload();
     }
 }
