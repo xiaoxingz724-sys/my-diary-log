@@ -386,6 +386,12 @@ button:active {
 
 <!-- Authentication Screen -->
 <div id="auth-container" class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;">
+  <!-- Supabase Initialization Error Banner -->
+  <div id="supabase-error-banner" style="display:none; width: 100%; max-width: 400px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--accent-danger); color: #fca5a5; padding: 16px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; box-sizing: border-box;">
+    <strong>⚠️ Supabase初期化エラー</strong><br>
+    <span class="error-details">環境変数（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）が正しく設定されていない可能性があります。</span>
+  </div>
+
   <div class="card" style="width: 100%; max-width: 400px; padding: 32px;">
     <h1 style="text-align: center; margin-bottom: 24px; letter-spacing: -1px;">📔 DailyLog</h1>
 
