@@ -536,6 +536,7 @@ let activeDateFilter = null;
 
 let supabaseClient = null;
 let currentUser = null;
+let diariesLoaded = false;
 
 function escapeHtml(string) {
   return String(string).replace(/[&<>"']/g, function (s) {
@@ -904,6 +905,7 @@ function switchTab(index) {
     });
 }
 
+// Supabase Logic
 function initSupabase() {
     const url = localStorage.getItem("supabase_url");
     const key = localStorage.getItem("supabase_key");
@@ -920,11 +922,11 @@ function initSupabase() {
             showSetupForm();
             const form = document.getElementById("setup-form");
             if (form) {
-                const oldErr = document.getElementById("supabase-init-error");
+                const oldErr = document.getElementById("supabaseClient-init-error");
                 if (oldErr) oldErr.remove();
                 
                 const errMsg = document.createElement("p");
-                errMsg.id = "supabase-init-error";
+                errMsg.id = "supabaseClient-init-error";
                 errMsg.style.color = "var(--accent-danger)";
                 errMsg.style.fontSize = "13px";
                 errMsg.style.marginTop = "10px";
@@ -938,42 +940,63 @@ function initSupabase() {
 }
 
 function setupAuthListener() {
+    // 状態変化時の監視
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        await handleSessionChange(session, event);
+    });
+    
+    // 起動時の初期セッションの強制確認（発火漏れ対策）
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
         if (session) {
-            currentUser = session.user;
-            document.getElementById("user-email").innerText = currentUser.email;
-            document.getElementById("auth-container").style.display = "none";
-            document.getElementById("app-container").style.display = "block";
-            
-            const localDiaries = localStorage.getItem("diaries");
-            if (localDiaries) {
-                try {
-                    const parsed = JSON.parse(localDiaries);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        document.getElementById("migration-banner").style.display = "block";
-                    } else {
-                        document.getElementById("migration-banner").style.display = "none";
-                    }
-                } catch(e) {
-                    document.getElementById("migration-banner").style.display = "none";
-                }
-            } else {
-                document.getElementById("migration-banner").style.display = "none";
-            }
-            
-            await fetchDiaries();
-        } else {
-            currentUser = null;
-            document.getElementById("auth-container").style.display = "flex";
-            document.getElementById("app-container").style.display = "none";
-            
-            if (localStorage.getItem("supabase_url") && localStorage.getItem("supabase_key")) {
-                showLoginForm();
-            } else {
-                showSetupForm();
-            }
+            handleSessionChange(session, null);
         }
     });
+}
+
+async function handleSessionChange(session, event = null) {
+    if (session) {
+        // すでに表示処理が完了しており、データも取得済みで、かつトークンリフレッシュイベントでなければスキップ
+        if (currentUser && currentUser.id === session.user.id && 
+            document.getElementById("app-container").style.display === "block" && 
+            diariesLoaded && 
+            event !== 'TOKEN_REFRESHED') {
+            return;
+        }
+        currentUser = session.user;
+        document.getElementById("user-email").innerText = currentUser.email;
+        document.getElementById("auth-container").style.display = "none";
+        document.getElementById("app-container").style.display = "block";
+        
+        // Check if there are local diaries that need migration
+        const localDiaries = localStorage.getItem("diaries");
+        if (localDiaries) {
+            try {
+                const parsed = JSON.parse(localDiaries);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    document.getElementById("migration-banner").style.display = "block";
+                } else {
+                    document.getElementById("migration-banner").style.display = "none";
+                }
+            } catch(e) {
+                document.getElementById("migration-banner").style.display = "none";
+            }
+        } else {
+            document.getElementById("migration-banner").style.display = "none";
+        }
+        
+        await fetchDiaries();
+    } else {
+        currentUser = null;
+        diariesLoaded = false;
+        document.getElementById("auth-container").style.display = "flex";
+        document.getElementById("app-container").style.display = "none";
+        
+        if (localStorage.getItem("supabase_url") && localStorage.getItem("supabase_key")) {
+            showLoginForm();
+        } else {
+            showSetupForm();
+        }
+    }
 }
 
 async function fetchDiaries() {
@@ -998,6 +1021,7 @@ async function fetchDiaries() {
         }
     } else {
         diaries = data;
+        diariesLoaded = true;
         renderDiaries();
         renderCalendar();
     }
@@ -1012,6 +1036,7 @@ function showSetupForm() {
     document.getElementById("supabaseClient-key").value = localStorage.getItem("supabase_key") || "";
 }
 
+// Setup & Event Listeners
 function showLoginForm() {
     document.getElementById("setup-form").style.display = "none";
     document.getElementById("login-form").style.display = "block";
@@ -1071,7 +1096,7 @@ async function handleEmailAuth(type) {
             if (error) {
                 showAuthMessage("新規登録エラー: " + error.message, "error");
             } else {
-                showAuthMessage("確認メールを送信しました！メールボックスをご確認 of 登録を完了してください。", "success");
+                showAuthMessage("確認メールを送信しました！メールボックスをご確認のうえ、リンクをクリックして登録を完了してください。", "success");
             }
         } else {
             showAuthMessage("ログイン処理を実行中...", "info");
