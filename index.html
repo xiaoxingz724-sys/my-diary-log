@@ -94,7 +94,7 @@ body {
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .panel {
@@ -532,6 +532,27 @@ button:active {
 </div>
 
 <script>
+window.onerror = function(message, source, lineno, colno, error) {
+    const errText = `${message} (at ${source}:${lineno}:${colno})`;
+    const el = document.getElementById("debug-status");
+    if (el) {
+        el.innerText = `Debug: [Global Error] ${errText}`;
+        el.style.background = "rgba(239, 68, 68, 0.2)";
+        el.style.color = "#fca5a5";
+    }
+    return false;
+};
+
+window.onunhandledrejection = function(event) {
+    const errText = `Unhandled Rejection: ${event.reason ? event.reason.message || event.reason : 'Unknown reason'}`;
+    const el = document.getElementById("debug-status");
+    if (el) {
+        el.innerText = `Debug: [Promise Error] ${errText}`;
+        el.style.background = "rgba(239, 68, 68, 0.2)";
+        el.style.color = "#fca5a5";
+    }
+};
+
 let diaries = [];
 let editingId = null;
 let displayLimit = 50;
@@ -1085,7 +1106,7 @@ function saveSupabaseConfig() {
     const key = document.getElementById("supabaseClient-key").value.trim();
     
     if (!url || !key) {
-        alert("URL and Anon Key are required.");
+        alert("URLとAnon Keyを入力してください。");
         return;
     }
     
@@ -1188,12 +1209,14 @@ async function signOut() {
     if (confirm("ログアウトしますか？")) {
         try {
             if (supabaseClient) {
+                // ハングを防ぐため、結果を待たずに非同期でバックグラウンド実行します
                 supabaseClient.auth.signOut().catch(e => console.error("SignOut background error:", e));
             }
         } catch(e) {
             console.error("SignOut error:", e);
         }
         
+        // ローカルに保存されているセッション関連データを強制クリア
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const key = localStorage.key(i);
             if (key && (key.startsWith("sb-") || key.includes("auth-token"))) {
@@ -1201,6 +1224,7 @@ async function signOut() {
             }
         }
         
+        // 画面をリロードして初期状態（ログイン画面）に戻します
         location.reload();
     }
 }
